@@ -51,7 +51,9 @@ footer{padding:60px 24px 36px}
 .closing{font-size:clamp(28px,4vw,35px);line-height:1.8;margin:0 0 24px}
 footer>a{display:inline-flex;min-height:44px;align-items:center;padding:8px 16px}
 .music-toggle{top:max(16px,env(safe-area-inset-top));left:max(16px,env(safe-area-inset-left));width:46px;height:46px}
-.reveal{transform:none;transition:opacity .35s ease}
+.reveal,.reveal.visible{opacity:1;transform:none;transition:none}
+/* Keep native scroll anchoring from moving content against the automatic scroll. */
+html,body{overflow-anchor:none;scroll-behavior:auto}
 @media(min-width:960px){
  main{display:grid;grid-template-columns:1fr 1fr;padding:40px 32px 0;gap:0 36px}
  main>section,footer{grid-column:1/-1}

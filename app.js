@@ -8,7 +8,8 @@ cover.addEventListener('click',()=>{
 });
 const eventTime=Date.parse('2026-12-04T16:00:00+02:00');
 function tick(){const s=Math.max(0,Math.floor((eventTime-Date.now())/1000));const units=[Math.floor(s/86400),Math.floor(s/3600)%24,Math.floor(s/60)%60,s%60];['days','hours','minutes','seconds'].forEach((id,i)=>document.getElementById(id).textContent=new Intl.NumberFormat('it',{minimumIntegerDigits:2,useGrouping:false}).format(units[i]));document.getElementById('celebration').hidden=s>0;}tick();setInterval(tick,1000);
-if('IntersectionObserver' in window){const observer=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target);}}),{threshold:.12});document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));}else document.querySelectorAll('.reveal').forEach(el=>el.classList.add('visible'));
+// Keep reading content stable rather than fading it in under a moving viewport.
+document.querySelectorAll('.reveal').forEach(el=>el.classList.add('visible'));
 // Begin local audio directly inside the opening gesture for mobile browsers.
 const music=document.getElementById('background-music');
 const musicToggle=document.getElementById('music-toggle');
@@ -28,7 +29,7 @@ function startAutoScroll(){
   if(autoScrollStarted||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   autoScrollStarted=true;
   const root=document.scrollingElement||document.documentElement;
-  const scrollSpeed=150;
+  const scrollSpeed=120;
   let maxScroll=0;
   function refreshScrollLimit(){maxScroll=Math.max(0,root.scrollHeight-root.clientHeight);}
   refreshScrollLimit();
@@ -37,15 +38,16 @@ function startAutoScroll(){
   if(document.fonts)document.fonts.ready.then(refreshScrollLimit);
   let last=performance.now();scrollPosition=root.scrollTop;lastWrittenScroll=root.scrollTop;
   function advance(now){
-    const elapsed=Math.min(now-last,80);last=now;
+    // Drop missed time instead of jumping ahead after a slow frame.
+    const elapsed=Math.max(0,Math.min(now-last,32));last=now;
     const current=root.scrollTop;
     if(heldPointers.size||heldTouches||document.hidden){
       scrollPosition=current;lastWrittenScroll=current;
     }else{
       // Adopt a manual scroll, including native swipe momentum, from its new position.
-      if(Math.abs(current-lastWrittenScroll)>1)scrollPosition=current;
+      if(Math.abs(current-lastWrittenScroll)>4)scrollPosition=current;
       scrollPosition=Math.min(maxScroll,Math.max(0,scrollPosition+elapsed*scrollSpeed/1000));
-      if(Math.abs(scrollPosition-current)>=.5){root.scrollTop=scrollPosition;lastWrittenScroll=root.scrollTop;}
+      if(Math.abs(scrollPosition-current)>=.5){window.scrollTo({top:scrollPosition,left:0,behavior:'instant'});lastWrittenScroll=scrollPosition;}
     }
     autoScrollFrame=requestAnimationFrame(advance);
   }
@@ -81,7 +83,7 @@ document.getElementById('back-to-top').addEventListener('click',event=>{
   resize();let resizeTimer;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(width!==window.innerWidth||Math.abs(height-window.innerHeight)>100)resize();},180);},{passive:true});
   function burst(x,y,index){
     if(document.hidden||reduced.matches)return;
-    const color=palette[index%palette.length],count=40;
+    const color=palette[index%palette.length],count=24;
     for(let i=0;i<count;i++){
       const angle=i/count*Math.PI*2,ring=i%2?1:.62,speed=(55+Math.random()*45)*ring;
       particles.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,age:0,life:1.6+Math.random()*.6,color,size:i%6===0?2.8:1.5,trail:[]});
@@ -107,7 +109,7 @@ document.getElementById('back-to-top').addEventListener('click',event=>{
     [[.08,.2],[.92,.32],[.08,.6]].forEach((point,i)=>timers.push(setTimeout(()=>burst(width*point[0],height*point[1],i),250+i*650)));
   }
   document.getElementById('open').addEventListener('click',()=>setTimeout(celebrate,1100));
-  if('IntersectionObserver' in window){const observer=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(entry.isIntersecting&&cover.hidden){celebrate();observer.unobserve(entry.target);}});},{threshold:.45});document.querySelectorAll('.hero,.count-section').forEach(section=>observer.observe(section));}
+  // Celebrate once on opening; no new flashes or canvas work midway through reading.
   function clear(){timers.forEach(clearTimeout);timers=[];particles=[];cancelAnimationFrame(frame);frame=0;canvas.hidden=true;ctx.clearRect(0,0,width,height);}
   document.addEventListener('visibilitychange',()=>{if(document.hidden)clear();});reduced.addEventListener('change',()=>{if(reduced.matches)clear();});
 })();
